@@ -1,0 +1,55 @@
+tofu:
+  version: 1.8
+  project: company
+  region: eu-central-1
+
+common_service:
+  bootstrap_url: "https://devops.pages.company.org/tf-modules/common-service/"
+  services: ["PostgreSQL", "Mongo", "Keycloak", "AD"]
+
+default_regions:
+  "111111111": "us-east-1"
+  "222222222": "eu-central-1"
+  "333333333": "us-west-2"
+
+profiles:
+  dev: &dev "222222222"
+  prod: &prod "111111111"
+  mgmt: &mgmt "333333333"
+
+
+environments:
+  endpoint: "http://10.100.100.100:9000"
+  dev: &dev-services
+    aws: *dev
+    eks: "dt-dev-euc1"
+    aurora: "pg-aurora-1-dev"
+    redis:
+      host: "redis-cluster-dev.beta.company.org"
+      group: "cluster-redis-cluster-dev-usergroup"
+    atlas:
+      cluster: "dftech-dev-cluster-shared0"
+      project: "8573jfsdhfjksdfy8975jkhfhksd"
+  stable: *dev-services
+
+  prod:
+    aws: *prod
+    eks: "dt-prod-usw2"
+    aurora: "company-pg-rds-itops-prod-usw2-1, pg-aurora-1-prod, pg-aurora-2-bo-prod"
+    redis:
+      host: "redis-cluster-prod.prime.company.org"
+      group: "cluster-redis-cluster-prod-usergroup"
+    atlas:
+      cluster: "dftech-prod-cluster-shared0"
+      project: "8573jfsdhfjksdfy8975jkhfhksd"
+
+  mgmt:
+    aws: *mgmt
+    eks: "dt-mgmt-usw2"
+    aurora: "company-pg-rds-itops-prod-usw2-1, pg-aurora-1-prod, pg-aurora-2-bo-prod"
+    redis:
+      host: "redis-cluster-prod.prime.company.org"
+      group: "cluster-redis-cluster-prod-usergroup"
+    atlas:
+      cluster: "dftech-prod-cluster-shared0"
+      project: "8573jfsdhfjksdfy8975jkhfhksd"
