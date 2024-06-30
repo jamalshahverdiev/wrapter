@@ -19,3 +19,9 @@ To install Wrapter, you need to have Go installed on your machine. Then, you can
 
 ```sh
 go get github.com/jamalshahverdiev/wrapter
+
+
+### Compile and move binary file to the PATH dir. We can use [!GVM](https://github.com/moovweb/gvm) to manage Go versions.
+
+```sh
+gvm use go1.22.3
