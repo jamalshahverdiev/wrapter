@@ -360,6 +360,80 @@ func generateMainTF(cfg *config.Config, targetDir string, components []string) e
 	return WriteFile(filepath.Join(targetDir, "main.tf"), mainContent)
 }
 
+// generateCustomSettingsTF generates the settings.tf content and writes it to the custom service directory
+func generateCustomSettingsTF(targetDir, accountID, region string) error {
+	settingsContent := fmt.Sprintf(`locals {
+  service_name         = data.terraform_remote_state.wrapter.outputs.service_outputs.settings.name
+  region               = data.terraform_remote_state.wrapter.outputs.service_outputs.settings.region
+  team                 = data.terraform_remote_state.wrapter.outputs.service_outputs.settings.team
+  env                  = data.terraform_remote_state.wrapter.outputs.service_outputs.settings.env
+  account_id           = "%s"
+  ad_ou_dn             = "OU=company,DC=example,DC=local"
+  scope                = "global"
+  category             = "security"
+  path                 = "iac"
+  infra_path           = "infra"
+  pg_path              = "postgresql"
+  mongo_path           = "mongodb"
+  keycloak_path        = "keycloak"
+  vault_mount_path     = "vss1"
+  services_secret_path = "services"
+  secret               = "secret"
+  callback_url         = "http://localhost:8080/callback"
+}
+
+variable "MINIO_ACCESS_KEY" {
+  type = string
+}
+variable "MINIO_SECRET_KEY" {
+  type = string
+}`, accountID)
+
+	return WriteFile(filepath.Join(targetDir, "settings.tf"), settingsContent)
+}
+
+// generateTFStateTF generates the tfstate.tf content and writes it to the custom service directory
+func generateTFStateTF(targetDir string, cfg *config.Config, environment string) error {
+	// Get the current working directory
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("could not get current directory: %w", err)
+	}
+
+	// Construct the state key dynamically using the project name, current directory, and the configuration
+	stateKey, err := ConstructStateKey(cfg.Tofu.Project, currentDir, cfg)
+	if err != nil {
+		return fmt.Errorf("could not construct state key: %w", err)
+	}
+
+	// Get the region dynamically based on the current environment and configuration
+	accountID, err := getFieldValueByEnvironment(cfg.Profiles, environment)
+	if err != nil {
+		return err
+	}
+	region := cfg.DefaultRegions[accountID]
+
+	// Fetch the endpoint value from the configuration
+	endpoint := cfg.Environments.Endpoint
+
+	tfstateContent := fmt.Sprintf(`data "terraform_remote_state" "wrapter" {
+  backend = "s3"
+  config = {
+    endpoint                    = "%s"
+    bucket                      = "%s-tfstates"
+    key                         = "%s"
+    region                      = "%s"
+    access_key                  = var.MINIO_ACCESS_KEY
+    secret_key                  = var.MINIO_SECRET_KEY
+    skip_credentials_validation = true
+    skip_metadata_api_check     = true
+    skip_requesting_account_id  = true
+  }
+}`, endpoint, cfg.Tofu.Project, stateKey, region)
+
+	return WriteFile(filepath.Join(targetDir, "tfstate.tf"), tfstateContent)
+}
+
 // copyStaticFile writes the embedded content of a static file to the target directory
 func copyStaticFile(filename, targetDir string) error {
 	var content string
@@ -376,4 +450,57 @@ func copyStaticFile(filename, targetDir string) error {
 	targetPath := filepath.Join(targetDir, filename)
 
 	return WriteFile(targetPath, content)
+}
+
+// createCustomServiceFiles creates the directory structure and required files for the custom service
+func createCustomServiceFiles(cfg *config.Config, environment, teamName, serviceName string) error {
+	accountID, region, err := getAccountAndRegion(cfg, environment)
+	if err != nil {
+		return fmt.Errorf("could not get account and region: %w", err)
+	}
+
+	// Determine the root directory for git
+	gitRoot, err := common.FindGitRoot()
+	if err != nil {
+		return fmt.Errorf("could not find git root: %w", err)
+	}
+
+	// Create the target directory structure
+	teamDir := filepath.Join(gitRoot, accountID, environment, region, teamName)
+	serviceDir := filepath.Join(teamDir, serviceName)
+	customServiceDir := serviceDir + "-custom"
+
+	// Check if team directory exists
+	if _, err := os.Stat(teamDir); os.IsNotExist(err) {
+		fmt.Println("Entered team name doesn't exist. To create a new service please execute 'wrapter create' and then select 'new'.")
+		return nil
+	}
+
+	// Check if service directory exists
+	if _, err := os.Stat(serviceDir); os.IsNotExist(err) {
+		fmt.Println("Entered service name doesn't exist. To create a new service please execute 'wrapter create' and then select 'new'.")
+		return nil
+	}
+
+	// Create the custom service directory
+	if err := CreateTargetDir(customServiceDir); err != nil {
+		return fmt.Errorf("could not create custom service directory %s: %w", customServiceDir, err)
+	}
+
+	// Generate and write settings.tf
+	if err := generateCustomSettingsTF(customServiceDir, accountID, region); err != nil {
+		return fmt.Errorf("could not create settings.tf: %w", err)
+	}
+
+	// Generate and write tfstate.tf
+	if err := generateTFStateTF(customServiceDir, cfg, environment); err != nil {
+		return fmt.Errorf("could not create tfstate.tf: %w", err)
+	}
+
+	// Copy static provider.tf
+	if err := copyStaticFile("provider.tf", customServiceDir); err != nil {
+		return fmt.Errorf("could not copy provider.tf: %w", err)
+	}
+
+	return nil
 }

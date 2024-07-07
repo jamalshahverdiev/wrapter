@@ -15,7 +15,7 @@ const variablesTfContent = `variable "SERVICES_TOKEN" {
   type = string
 }
   
-output "outputs" {
+output "service_outputs" {
   value = module.common_modules
 }
 `

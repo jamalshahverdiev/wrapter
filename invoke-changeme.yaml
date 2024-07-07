@@ -5,6 +5,8 @@ tofu:
 
 common_service:
   bootstrap_url: "https://devops.pages.company.org/tf-modules/common-service/"
+  module_git_url: "git::https://github.com/jamalshahverdiev/terraform-common-modules.git"
+  module_version: "0.5.2"
   services: ["PostgreSQL", "Mongo", "Keycloak", "AD"]
 
 default_regions:
@@ -14,6 +16,7 @@ default_regions:
 
 profiles:
   dev: &dev "222222222"
+  stable: &stable "222222222"
   prod: &prod "111111111"
   mgmt: &mgmt "333333333"
 
@@ -28,9 +31,19 @@ environments:
       host: "redis-cluster-dev.beta.company.org"
       group: "cluster-redis-cluster-dev-usergroup"
     atlas:
-      cluster: "dftech-dev-cluster-shared0"
+      cluster: "company-dev-cluster-shared0"
       project: "8573jfsdhfjksdfy8975jkhfhksd"
-  stable: *dev-services
+  
+  stable: 
+    aws: *stable
+    eks: "dt-dev-euc1"
+    aurora: "pg-aurora-1-dev"
+    redis:
+      host: "redis-cluster-dev.beta.company.org"
+      group: "cluster-redis-cluster-dev-usergroup"
+    atlas:
+      cluster: "company-dev-cluster-shared0"
+      project: "8573jfsdhfjksdfy8975jkhfhksd"
 
   prod:
     aws: *prod
@@ -40,7 +53,7 @@ environments:
       host: "redis-cluster-prod.prime.company.org"
       group: "cluster-redis-cluster-prod-usergroup"
     atlas:
-      cluster: "dftech-prod-cluster-shared0"
+      cluster: "company-prod-cluster-shared0"
       project: "8573jfsdhfjksdfy8975jkhfhksd"
 
   mgmt:
@@ -51,5 +64,5 @@ environments:
       host: "redis-cluster-prod.prime.company.org"
       group: "cluster-redis-cluster-prod-usergroup"
     atlas:
-      cluster: "dftech-prod-cluster-shared0"
+      cluster: "company-prod-cluster-shared0"
       project: "8573jfsdhfjksdfy8975jkhfhksd"

@@ -243,16 +243,6 @@ func BootstrapService(cfg *config.Config) error {
 		return err
 	}
 
-	if serviceType != "new" {
-		fmt.Println("Custom service handling is not implemented yet.")
-		return nil
-	}
-
-	components, err := promptForComponents(cfg.CommonService.Services)
-	if err != nil {
-		return err
-	}
-
 	teamName, err := promptForText("Provide your team name and enter:")
 	if err != nil {
 		return err
@@ -263,12 +253,74 @@ func BootstrapService(cfg *config.Config) error {
 		return err
 	}
 
-	// Create directories and files for each selected environment
-	for _, env := range environments {
-		if err := createServiceFiles(cfg, env, teamName, serviceName, components); err != nil {
-			return fmt.Errorf("failed to create service files for environment %s: %w", env, err)
+	if serviceType == "custom" {
+		for _, env := range environments {
+			if err := createCustomServiceFiles(cfg, env, teamName, serviceName); err != nil {
+				return fmt.Errorf("failed to create custom service files for environment %s: %w", env, err)
+			}
+		}
+		return nil
+	}
+
+	if serviceType == "new" {
+		components, err := promptForComponents(cfg.CommonService.Services)
+		if err != nil {
+			return err
+		}
+
+		// Create directories and files for each selected environment
+		for _, env := range environments {
+			if err := createServiceFiles(cfg, env, teamName, serviceName, components); err != nil {
+				return fmt.Errorf("failed to create service files for environment %s: %w", env, err)
+			}
 		}
 	}
 
 	return nil
 }
+
+
+
+
+// BootstrapService bootstraps the service
+// func BootstrapService(cfg *config.Config) error {
+// 	// Prompt for user inputs using the survey library
+// 	environments, err := promptForEnvironments()
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	serviceType, err := promptForServiceType()
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	if serviceType != "new" {
+// 		fmt.Println("Custom service handling is not implemented yet.")
+// 		return nil
+// 	}
+
+// 	components, err := promptForComponents(cfg.CommonService.Services)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	teamName, err := promptForText("Provide your team name and enter:")
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	serviceName, err := promptForText("Provide the service name and enter:")
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	// Create directories and files for each selected environment
+// 	for _, env := range environments {
+// 		if err := createServiceFiles(cfg, env, teamName, serviceName, components); err != nil {
+// 			return fmt.Errorf("failed to create service files for environment %s: %w", env, err)
+// 		}
+// 	}
+
+// 	return nil
+// }
