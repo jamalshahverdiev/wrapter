@@ -58,6 +58,45 @@ func ConstructStateKey(project, currentDir string, cfg *config.Config) (string, 
 	return stateKey, nil
 }
 
+// ConstructCustomStateKey constructs the state key for the custom Terraform backend configuration
+func ConstructCustomStateKey(project, currentDir, teamName, serviceName string, cfg *config.Config) (string, error) {
+	// Clean the current directory path to ensure it's in a standard format
+	cleanDir := filepath.Clean(currentDir)
+
+	// Extract the environment from the path
+	environment := ExtractEnvironmentFromPath(cleanDir)
+	if environment == "" {
+		return "", fmt.Errorf("unable to determine environment from path: %s", cleanDir)
+	}
+
+	fmt.Printf("Extracted environment: %s\n", environment) // Debugging statement
+
+	// Dynamically get the account ID from the profiles using the environment string
+	accountID, err := getFieldValueByEnvironment(cfg.Profiles, environment)
+	if err != nil {
+		return "", err
+	}
+
+	// Get the region from the default_regions based on the account ID
+	region, exists := cfg.DefaultRegions[accountID]
+	if !exists {
+		return "", fmt.Errorf("region not found for account ID: %s", accountID)
+	}
+
+	// Construct the expected prefix (account ID, environment, region)
+	expectedPrefix := filepath.Join(accountID, environment, region)
+
+	fmt.Printf("Expected prefix: %s\n", expectedPrefix) // Debugging statement
+
+	// Construct the final state key
+	stateKey := filepath.Join(project, expectedPrefix, teamName, serviceName, "service.tfstate")
+
+	fmt.Printf("Constructed state key: %s\n", stateKey) // Debugging statement
+
+	return stateKey, nil
+}
+
+
 // getFieldValueByEnvironment uses reflection to get the value of the field in the Profiles struct based on the environment string
 func getFieldValueByEnvironment(profiles interface{}, environment string) (string, error) {
 	// Define a mapping from lowercase environment names to struct field names
@@ -393,19 +432,7 @@ variable "MINIO_SECRET_KEY" {
 }
 
 // generateTFStateTF generates the tfstate.tf content and writes it to the custom service directory
-func generateTFStateTF(targetDir string, cfg *config.Config, environment string) error {
-	// Get the current working directory
-	currentDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("could not get current directory: %w", err)
-	}
-
-	// Construct the state key dynamically using the project name, current directory, and the configuration
-	stateKey, err := ConstructStateKey(cfg.Tofu.Project, currentDir, cfg)
-	if err != nil {
-		return fmt.Errorf("could not construct state key: %w", err)
-	}
-
+func generateTFStateTF(targetDir, stateKey string, cfg *config.Config, environment string) error {
 	// Get the region dynamically based on the current environment and configuration
 	accountID, err := getFieldValueByEnvironment(cfg.Profiles, environment)
 	if err != nil {
@@ -492,8 +519,14 @@ func createCustomServiceFiles(cfg *config.Config, environment, teamName, service
 		return fmt.Errorf("could not create settings.tf: %w", err)
 	}
 
+	// Construct the state key dynamically using the project name, current directory, and the configuration
+	stateKey, err := ConstructCustomStateKey(cfg.Tofu.Project, customServiceDir, teamName, serviceName, cfg)
+	if err != nil {
+		return fmt.Errorf("could not construct state key: %w", err)
+	}
+
 	// Generate and write tfstate.tf
-	if err := generateTFStateTF(customServiceDir, cfg, environment); err != nil {
+	if err := generateTFStateTF(customServiceDir, stateKey, cfg, environment); err != nil {
 		return fmt.Errorf("could not create tfstate.tf: %w", err)
 	}
 
