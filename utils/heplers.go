@@ -361,7 +361,7 @@ func generateMainTF(cfg *config.Config, targetDir string, components []string) e
 }
 
 // generateCustomSettingsTF generates the settings.tf content and writes it to the custom service directory
-func generateCustomSettingsTF(targetDir, accountID, region string) error {
+func generateCustomSettingsTF(targetDir, accountID string) error {
 	settingsContent := fmt.Sprintf(`locals {
   service_name         = data.terraform_remote_state.wrapter.outputs.service_outputs.settings.name
   region               = data.terraform_remote_state.wrapter.outputs.service_outputs.settings.region
@@ -488,7 +488,7 @@ func createCustomServiceFiles(cfg *config.Config, environment, teamName, service
 	}
 
 	// Generate and write settings.tf
-	if err := generateCustomSettingsTF(customServiceDir, accountID, region); err != nil {
+	if err := generateCustomSettingsTF(customServiceDir, accountID); err != nil {
 		return fmt.Errorf("could not create settings.tf: %w", err)
 	}
 
